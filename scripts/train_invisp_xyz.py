@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.optim import lr_scheduler
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 import wandb
@@ -115,7 +115,7 @@ def save_validation_samples(net, dataloader, args, epoch, results_dir, num_sampl
             target_data = target_data.cuda()
             
             # Forward pass
-            with autocast():
+            with autocast('cuda'):
                 output = net(input_data)
                 output = torch.clamp(output, 0, 1)
                 
@@ -362,7 +362,7 @@ def train_epoch(net, dataloader, optimizer, args, epoch, diffjpeg_instance, scal
         target_data = target_data.cuda()
         
         # Forward pass with AMP
-        with autocast():
+        with autocast('cuda'):
             output = net(input_data)
             output = torch.clamp(output, 0, 1)
             
@@ -467,7 +467,7 @@ def validate_epoch(net, dataloader, args, epoch, diffjpeg_instance):
             target_data = target_data.cuda()
             
             # Forward pass with AMP
-            with autocast():
+            with autocast('cuda'):
                 output = net(input_data)
                 output = torch.clamp(output, 0, 1)
                 
@@ -635,7 +635,7 @@ def main():
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50, 80], gamma=0.5)
     
     # Initialize AMP scaler
-    scaler = GradScaler()
+    scaler = GradScaler('cuda')
     if not args.distributed or args.local_rank == 0:
         print("[INFO] AMP (Automatic Mixed Precision) enabled for memory optimization")
     
