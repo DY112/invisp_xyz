@@ -1,0 +1,11 @@
+results/
+wandb/
+exps/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.log
+*.wandb
