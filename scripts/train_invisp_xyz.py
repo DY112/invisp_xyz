@@ -350,7 +350,7 @@ def train_epoch(net, dataloader, optimizer, args, epoch, diffjpeg_instance, scal
     # Create progress bar (only on main process)
     if not args.distributed or args.local_rank == 0:
         pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}", 
-                   leave=False, disable=False)
+                   leave=True, disable=False)
     else:
         pbar = dataloader
     
@@ -456,7 +456,7 @@ def validate_epoch(net, dataloader, args, epoch, diffjpeg_instance):
     # Create progress bar (only on main process)
     if not args.distributed or args.local_rank == 0:
         pbar = tqdm(dataloader, desc=f"Validation", 
-                   leave=False, disable=False)
+                   leave=True, disable=False)
     else:
         pbar = dataloader
     
