@@ -667,6 +667,10 @@ def main():
         print(f"[INFO] Dataset subsets: {args.dataset_subsets}")
         print(f"[INFO] Validation frequency: every {args.val_freq} epochs")
     
+    # Initialize best metrics tracking
+    best_forward_psnr = 0.0
+    best_forward_ssim = 0.0
+    
     # Training loop
     if not args.distributed or args.local_rank == 0:
         print("[INFO] Starting training...")
@@ -709,13 +713,31 @@ def main():
             else:
                 model_state_dict = net.state_dict()
             
+            # Always save latest checkpoint
             torch.save(model_state_dict, args.out_path + f"{args.task}/checkpoint/latest.pth")
             
-            # Save periodic checkpoints
-            if (epoch + 1) % 10 == 0:
+            # Save checkpoint and check for best models on validation epochs
+            if val_metrics is not None:
+                # Save epoch checkpoint
                 checkpoint_path = args.out_path + f"{args.task}/checkpoint/{epoch+1:04d}.pth"
                 torch.save(model_state_dict, checkpoint_path)
                 print(f"[INFO] Saved checkpoint: {checkpoint_path}")
+                
+                # Check for best PSNR
+                current_psnr = val_metrics['forward_psnr']
+                if current_psnr > best_forward_psnr:
+                    best_forward_psnr = current_psnr
+                    best_psnr_path = args.out_path + f"{args.task}/checkpoint/best_psnr.pth"
+                    torch.save(model_state_dict, best_psnr_path)
+                    print(f"[INFO] New best PSNR: {current_psnr:.2f}dB -> Saved to {best_psnr_path}")
+                
+                # Check for best SSIM
+                current_ssim = val_metrics['forward_ssim']
+                if current_ssim > best_forward_ssim:
+                    best_forward_ssim = current_ssim
+                    best_ssim_path = args.out_path + f"{args.task}/checkpoint/best_ssim.pth"
+                    torch.save(model_state_dict, best_ssim_path)
+                    print(f"[INFO] New best SSIM: {current_ssim:.3f} -> Saved to {best_ssim_path}")
         
         # Log to wandb (only on main process)
         if args.use_wandb and (not args.distributed or args.local_rank == 0):
