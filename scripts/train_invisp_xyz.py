@@ -329,7 +329,7 @@ def create_dataloader(dataset, args, split="train"):
         batch_size=args.batch_size,
         shuffle=shuffle,
         sampler=sampler,
-        num_workers=24,
+        num_workers=4,
         drop_last=True
     )
     return dataloader
