@@ -186,7 +186,7 @@ class SRGB2XYZDataset(Dataset):
         crop_size_min: int = 512,
         crop_size_max: int = 1024,
         crop_prob: float = 0.8,
-        enable_random_crop: bool = True,
+        enable_random_crop: Optional[bool] = None,
         pairs: Optional[List[Tuple[Path, Path]]] = None,
         training_flow: str = "forward",
         split: str = "train"
@@ -210,10 +210,14 @@ class SRGB2XYZDataset(Dataset):
         """
         self.image_size = image_size
         self.crop_size_min, self.crop_size_max, self.crop_prob = crop_size_min, crop_size_max, crop_prob
-        self.enable_random_crop = enable_random_crop
         self.xyz_norm = XYZNorm(mode=xyz_norm_mode)
         self.training_flow = training_flow
         self.split = split
+        # Auto-enable random crop for train split if not explicitly specified
+        if enable_random_crop is None:
+            self.enable_random_crop = (self.split == "train")
+        else:
+            self.enable_random_crop = enable_random_crop
         
         if pairs is not None:
             # Use provided pairs
@@ -221,7 +225,17 @@ class SRGB2XYZDataset(Dataset):
         else:
             # Load pairs from manifest with specified split
             pairs, _ = load_manifest_pairs(manifest_path, dataset_subsets, split)
-            self.samples = pairs
+            # Filter out non-existent files similar to unified xyz_dataset
+            samples: List[Tuple[Path, Path]] = []
+            skipped = 0
+            for s_path, x_path in pairs:
+                if Path(s_path).is_file() and Path(x_path).is_file():
+                    samples.append((Path(s_path), Path(x_path)))
+                else:
+                    skipped += 1
+            if skipped > 0:
+                print(f"[WARN] {skipped} pairs skipped due to missing files in split '{self.split}'.")
+            self.samples = samples
         
         if not self.samples:
             raise ValueError("No samples found in dataset")
@@ -303,40 +317,3 @@ class SRGB2XYZDataset(Dataset):
         else:
             # sRGB -> XYZ: input=sRGB, target=XYZ  
             return s_t, x_t, spath.name
-
-
-class ValPairsDataset(Dataset):
-    """
-    Simple dataset for validation pairs without random cropping.
-    
-    This is a lightweight dataset class specifically designed for validation
-    that loads sRGB-XYZ pairs and returns them in [0,1] range.
-    """
-    
-    def __init__(self, pairs: List[Tuple[Path, Path]]):
-        """
-        Initialize validation dataset.
-        
-        Args:
-            pairs: List of (sRGB_path, XYZ_path) tuples
-        """
-        self.pairs = pairs
-    
-    def __len__(self) -> int:
-        return len(self.pairs)
-    
-    def __getitem__(self, idx: int):
-        """Get a validation sample."""
-        spath, xpath = self.pairs[idx]
-        
-        # Load sRGB image
-        s_img = Image.open(spath).convert("RGB")
-        s_t01 = ensure_chw_float_tensor(s_img) / 255.0  # CHW [0,1]
-        
-        # Load XYZ image
-        import imageio.v3 as iio
-        x_arr = iio.imread(xpath)
-        x01 = to_float01(x_arr)  # HWC [0,1]
-        x_t01 = torch.from_numpy(x01.transpose(2, 0, 1))  # CHW
-        
-        return s_t01, x_t01

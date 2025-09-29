@@ -297,9 +297,6 @@ def setup_directories(args):
 
 def create_dataset(args, split="train"):
     """Create dataset for training, validation, or testing."""
-    # Enable random crop only for training
-    enable_random_crop = (split == "train")
-    
     dataset = SRGB2XYZDataset(
         manifest_path=Path(args.manifest_path),
         dataset_subsets=args.dataset_subsets,
@@ -308,7 +305,6 @@ def create_dataset(args, split="train"):
         crop_size_min=768,
         crop_size_max=1536,
         crop_prob=0.8,
-        enable_random_crop=enable_random_crop,
         training_flow=args.training_flow,
         split=split
     )
