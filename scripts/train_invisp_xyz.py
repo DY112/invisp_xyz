@@ -305,8 +305,8 @@ def create_dataset(args, split="train"):
         dataset_subsets=args.dataset_subsets,
         image_size=args.image_size,
         xyz_norm_mode=args.xyz_norm_mode,
-        crop_size_min=256,
-        crop_size_max=512,
+        crop_size_min=768,
+        crop_size_max=1536,
         crop_prob=0.8,
         enable_random_crop=enable_random_crop,
         training_flow=args.training_flow,
@@ -329,7 +329,7 @@ def create_dataloader(dataset, args, split="train"):
         batch_size=args.batch_size,
         shuffle=shuffle,
         sampler=sampler,
-        num_workers=4,
+        num_workers=24,
         drop_last=True
     )
     return dataloader
