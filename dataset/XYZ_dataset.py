@@ -96,7 +96,7 @@ class XYZNorm:
 def load_manifest_pairs(
     manifest_path: Path, 
     dataset_subsets: Optional[List[str]] = None,
-    is_train: bool = True
+    split: str = "train"
 ) -> Tuple[List[Tuple[Path, Path]], Dict[str, str]]:
     """
     Load image pairs from manifest with optional dataset subset filtering.
@@ -105,7 +105,7 @@ def load_manifest_pairs(
         manifest_path: Path to the manifest JSON file
         dataset_subsets: List of dataset types to include (e.g., ["a5k", "raise"]).
                         If None or ["all"], includes all dataset types.
-        is_train: Whether to load training or validation data
+        split: Data split to load ("train", "val", or "test")
     
     Returns:
         Tuple of (pairs, meta) where:
@@ -115,11 +115,11 @@ def load_manifest_pairs(
     with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
     
-    # Get train or val items based on is_train flag
-    if is_train:
-        items = manifest.get("train", [])
-    else:
-        items = manifest.get("val", [])
+    # Get items based on split
+    if split not in ["train", "val", "test"]:
+        raise ValueError(f"Invalid split: {split}. Must be 'train', 'val', or 'test'")
+    
+    items = manifest.get(split, [])
     
     meta_root = Path(manifest.get("meta", {}).get("root", "."))
     srgb_suffix = manifest.get("meta", {}).get("srgb_suffix", "_srgb.png")
@@ -189,7 +189,7 @@ class SRGB2XYZDataset(Dataset):
         enable_random_crop: bool = True,
         pairs: Optional[List[Tuple[Path, Path]]] = None,
         training_flow: str = "forward",
-        is_train: bool = True
+        split: str = "train"
     ):
         """
         Initialize the dataset.
@@ -206,21 +206,21 @@ class SRGB2XYZDataset(Dataset):
             enable_random_crop: Whether to enable random cropping
             pairs: Pre-computed pairs list (if provided, manifest_path and dataset_subsets are ignored)
             training_flow: "forward" (XYZ->sRGB) or "backward" (sRGB->XYZ)
-            is_train: Whether this is training dataset (affects data splitting)
+            split: Data split to load ("train", "val", or "test")
         """
         self.image_size = image_size
         self.crop_size_min, self.crop_size_max, self.crop_prob = crop_size_min, crop_size_max, crop_prob
         self.enable_random_crop = enable_random_crop
         self.xyz_norm = XYZNorm(mode=xyz_norm_mode)
         self.training_flow = training_flow
-        self.is_train = is_train
+        self.split = split
         
         if pairs is not None:
             # Use provided pairs
             self.samples = [(Path(s), Path(x)) for (s, x) in pairs]
         else:
-            # Load pairs from manifest with train/val split
-            pairs, _ = load_manifest_pairs(manifest_path, dataset_subsets, is_train)
+            # Load pairs from manifest with specified split
+            pairs, _ = load_manifest_pairs(manifest_path, dataset_subsets, split)
             self.samples = pairs
         
         if not self.samples:

@@ -11,7 +11,7 @@
 MANIFEST_PATH="/ssd2/dataset/sRGB_XYZ_pairs/trainval.json"
 
 # Training parameters
-TASK_NAME="invisp_xyz_forward"
+TASK_NAME="invisp_xyz_backward"
 OUTPUT_PATH="./exps/"
 BATCH_SIZE=3
 LEARNING_RATE=0.0001
@@ -21,7 +21,7 @@ LOSS_TYPE="L1"
 
 # Dataset parameters
 DATASET_SUBSETS=(a5k raise)  # or "all" for all datasets
-TRAINING_FLOW="forward"      # "forward" for XYZ->sRGB, "backward" for sRGB->XYZ
+TRAINING_FLOW="backward"      # "forward" for XYZ->sRGB, "backward" for sRGB->XYZ
 XYZ_NORM_MODE="unit"         # "unit" or "d65"
 
 # JPEG compression parameters

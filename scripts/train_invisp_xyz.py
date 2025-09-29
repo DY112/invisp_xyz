@@ -45,7 +45,8 @@ def init_ddp(local_rank, world_size):
         backend='nccl',
         init_method='env://',
         world_size=world_size,
-        rank=local_rank
+        rank=local_rank,
+        device_id=local_rank
     )
     torch.cuda.set_device(local_rank)
     # Only print from main process
@@ -295,8 +296,11 @@ def setup_directories(args):
     with open(args.out_path + f"{args.task}/commandline_args.json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)
 
-def create_dataset(args, is_train=True):
-    """Create dataset for training or validation."""
+def create_dataset(args, split="train"):
+    """Create dataset for training, validation, or testing."""
+    # Enable random crop only for training
+    enable_random_crop = (split == "train")
+    
     dataset = SRGB2XYZDataset(
         manifest_path=Path(args.manifest_path),
         dataset_subsets=args.dataset_subsets,
@@ -305,20 +309,21 @@ def create_dataset(args, is_train=True):
         crop_size_min=256,
         crop_size_max=512,
         crop_prob=0.8,
-        enable_random_crop=is_train,
+        enable_random_crop=enable_random_crop,
         training_flow=args.training_flow,
-        is_train=is_train
+        split=split
     )
     return dataset
 
-def create_dataloader(dataset, args, is_train=True):
+def create_dataloader(dataset, args, split="train"):
     """Create dataloader with appropriate sampler."""
-    if args.distributed and is_train:
+    # Use distributed sampler only for training
+    if args.distributed and split == "train":
         sampler = DistributedSampler(dataset, shuffle=True)
         shuffle = False  # sampler handles shuffling
     else:
         sampler = None
-        shuffle = True
+        shuffle = (split == "train")  # shuffle only for training
     
     dataloader = DataLoader(
         dataset,
@@ -532,8 +537,9 @@ def validate_epoch(net, dataloader, args, epoch, diffjpeg_instance):
                 pbar.set_postfix({
                     'Loss': f'{loss.item():.5f}',
                     'F_PSNR': f'{forward_psnr:.2f}',
+                    'F_SSIM': f'{forward_ssim:.4f}',
                     'R_PSNR': f'{reverse_psnr:.2f}',
-                    'F_SSIM': f'{forward_ssim:.3f}'
+                    'R_SSIM': f'{reverse_ssim:.4f}'
                 })
     
     net.train()
@@ -642,14 +648,14 @@ def main():
     # Create datasets
     if not args.distributed or args.local_rank == 0:
         print("[INFO] Creating training dataset...")
-    train_dataset = create_dataset(args, is_train=True)
-    train_dataloader = create_dataloader(train_dataset, args, is_train=True)
+    train_dataset = create_dataset(args, split="train")
+    train_dataloader = create_dataloader(train_dataset, args, split="train")
     
     # Create validation dataset
     if not args.distributed or args.local_rank == 0:
         print("[INFO] Creating validation dataset...")
-    val_dataset = create_dataset(args, is_train=False)
-    val_dataloader = create_dataloader(val_dataset, args, is_train=False)
+    val_dataset = create_dataset(args, split="val")
+    val_dataloader = create_dataloader(val_dataset, args, split="val")
     
     # Calculate effective batch size
     if args.distributed:
