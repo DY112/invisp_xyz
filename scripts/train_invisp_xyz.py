@@ -45,8 +45,7 @@ def init_ddp(local_rank, world_size):
         backend='nccl',
         init_method='env://',
         world_size=world_size,
-        rank=local_rank,
-        device_id=local_rank
+        rank=local_rank
     )
     torch.cuda.set_device(local_rank)
     # Only print from main process
